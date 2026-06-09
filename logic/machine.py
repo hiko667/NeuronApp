@@ -19,7 +19,6 @@ class Machine():
 
         self.data = df[['x1', 'x2']].to_numpy()
         self.class_val = df[['class']].to_numpy()
-        print(self.class_val)
 
     def learn(self) -> None:
         if self.data is None:
@@ -27,9 +26,15 @@ class Machine():
         x1 = float(self.data[self.t][0])
         x2 = float(self.data[self.t][1])
         d = int(self.class_val[self.t][0])
+        if d == 0 : d = -1
         result = self.w1 * x1 + self.w2 * x2 + self.bias
-        if result < 0 and d == 0 or result > 0 and d == 0:
+        if result < 0 and d < 0 or result > 0 and d > 0:
             pass
         else:
-            pass
-        self.t += 1
+            self.w1 = self.w1 + x1 * d
+            self.w2 = self.w2 + x2 * d
+        if self.t < self.class_val.shape[1] - 1:
+            self.t += 1
+        else:
+            self.t = 0
+            self.epoch += 1
