@@ -1,6 +1,7 @@
 from logic.machine import Machine
+from gui.gui import Interface
+def main():
+    i = Interface()
 
-m = Machine()
-m.load_data("test.arff")
-for i in range(10):
-    m.learn()
+if __name__ == "__main__":
+    main()
