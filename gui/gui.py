@@ -29,6 +29,6 @@ class Interface():
         self.machine = Machine()
         self.root.mainloop()
     def on_load_file(self):
-        filename = filedialog.askopenfilename(initialdir = "~/", title="Select file", filetypes=(
+        filename = filedialog.askopenfilename(initialdir = os.path.abspath(os.sep), title="Select file", filetypes=(
             ("Tab separated files","*.tab*"),
             ("all files", "*.*")))
