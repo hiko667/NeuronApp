@@ -2,8 +2,6 @@
 
 Projekt na przedmiot Sztuczna Inteligencja, realizowany na Politechnice Białostockiej
 
-
-
 ## Autorzy
 
 - [@Fern-KK](https://github.com/Fern-KK) Stanisław Kulesza
