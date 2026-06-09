@@ -1,0 +1,30 @@
+Stwórz aplikację wizualizującą działanie oraz uczenie pojedynczego neuronu typu perceptron.
+Aplikacja powinna umożliwiać wyznaczenie równania prostej rozdzielającej dwa zbiory punktów
+podanych na płaszczyźnie (pod warunkiem, że taka prosta istnieje) i dodatkowo:
+• wizualizację tej prostej oraz punktów,
+• wykres błędów procesu uczenia,
+• ustalenie warunku zatrzymania procesu uczenia (maksymalny błąd lub ilość iteracji).
+Wymagania:
+Wynik działania algorytmu powinien być przedstawiony graficznie z wykorzystaniem
+dostępnych bibliotek interfejsów graficznych (np. Java Swing, .NET WPF, .NET Windows Forms).
+Aplikacja powinna dodatkowo wyświetlać dane pośrednie wynikające
+z wykonania algorytmu. Dane obliczeniowe wczytywane są z pliku tekstowego zgodnego
+z formatem RSES (*.tab) lub Weka (*.arff).
+Projekt musi być zrealizowany z wykorzystaniem techniki programowania obiektowego.
+Klasy implementujące algorytmy powinny być zawarte w oddzielnym pakiecie (przestrzeni nazw)
+i nie mogą zawierać elementów interfejsu graficznego.
+Dodatkowe funkcjonalności aplikacji (za każdą zrealizowaną – pół oceny więcej):
+• prezentacja graficzna poszczególnych kroków działania algorytmów (kontrola kroków przez
+użytkownika oraz tryb automatyczny),
+• implementacja neuronu typu Adaline,
+• interfejs pozwalający na graficzną modyfikację danych pobranych z pliku,
+• możliwość zapisania stanu działania aplikacji w dowolnym momencie.
+
+Przykład
+Neurony o dwóch wejściach można wykorzystać do podziału płaszczyzny dwuwymiarowej na dwie
+części za pomocą prostej. Podział ten wyznacza prosta o równaniu:
+w1*x1 + w2*x2 + w0=0
+Po przekształceniu:
+x2= (−w1/w2*x1) − w0/w2
+Czyli współczynniki takiej prostej zależą od wartości wag neuronu.
+ Teraz stosując algorytm uczenia neuronu można te współczynniki wyznaczyć. 
