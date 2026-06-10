@@ -14,7 +14,7 @@ class Machine():
         self.data = None
         self.class_val = None
         self.error_scores = []
-    def load_data(self, path, test_size = 0.33):
+    def load_data(self, path):
         self.t = 0
         self.epoch = 0
         self.error_scores = []
@@ -28,6 +28,10 @@ class Machine():
         self.calculate_error()
     def set_tolerance(self, tolerance):
         self.tolerance = tolerance
+    def reset(self):
+        self.w1 = random.randint(-100, 100)
+        self.w2 = random.randint(-100, 100)
+        self.bias = random.randint(-100, 100)
     def learn(self) -> None:
         if self.data is None:
             raise Exception("Data has not been loaded")
@@ -66,3 +70,47 @@ class Machine():
         for i in range(steps):
             self.learn()
 
+class AdalineMachine(Machine):
+    def __init__(self, learning_rate=0.01):
+        super().__init__()
+        self.learning_rate = learning_rate
+
+    def learn(self) -> None:
+        if self.data is None:
+            raise Exception("Data has not been loaded")
+
+        x1 = float(self.data[self.t][0])
+        x2 = float(self.data[self.t][1])
+        d = int(self.class_val[self.t][0])
+        if d == 0:
+            d = -1
+
+        net = self.w1 * x1 + self.w2 * x2 + self.bias
+
+        error = d - net
+
+        self.w1   += self.learning_rate * error * x1
+        self.w2   += self.learning_rate * error * x2
+        self.bias += self.learning_rate * error
+
+        if self.t < self.class_val.shape[0] - 1:
+            self.t += 1
+        else:
+            self.t = 0
+            self.epoch += 1
+
+    def calculate_error(self) -> None:
+        total_samples = self.data.shape[0]
+        squared_errors = 0.0
+
+        for i in range(total_samples):
+            x1 = float(self.data[i][0])
+            x2 = float(self.data[i][1])
+            d  = int(self.class_val[i][0])
+            if d == 0:
+                d = -1
+
+            net = self.w1 * x1 + self.w2 * x2 + self.bias
+            squared_errors += (d - net) ** 2
+
+        self.error_scores.append(squared_errors / total_samples)
