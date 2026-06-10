@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 from tkinter import ttk
 import os
+import time
 import numpy as np
 
 import matplotlib
@@ -47,10 +48,17 @@ class Interface():
 
         tk.Label(ctrl, text="Steps per click").pack(anchor='w')
         self.steps_var = tk.IntVar(value=1)
-        tk.Spinbox(ctrl, from_=1, to=10_000, textvariable=self.steps_var, width=10).pack(anchor='w')
 
+        tk.Spinbox(ctrl, from_=1, to=10_000, textvariable=self.steps_var, width=10).pack(anchor='w')
         tk.Button(ctrl, text="▶ Learn (n steps)", command=self.on_learn_steps, width=18).pack(pady=(10, 2))
+        tk.Button(ctrl, text="▶ Learn slowly (n steps)", command=self.on_learn_slowly, width=18).pack(pady=(10))
         tk.Button(ctrl, text="⟳ Reset weights", command=self.on_reset, width=18).pack(pady=2)
+        ttk.Separator(ctrl, orient='horizontal').pack(fill='x', pady=8)
+        
+        tk.Label(ctrl, text="Target error").pack(anchor='w')
+        self.error_expected = tk.DoubleVar(value=0.1)
+        tk.Entry(ctrl, textvariable=self.error_expected, width=10).pack(anchor='w')
+        tk.Button(ctrl, text="Update target error", command=self.on_reset, width=18).pack(pady=2)
 
         ttk.Separator(ctrl, orient='horizontal').pack(fill='x', pady=8)
 
@@ -125,6 +133,34 @@ class Interface():
         self.update_info()
         self.draw_plot()
 
+    def on_learn_slowly(self):
+        if self.machine.data is None:
+            messagebox.showwarning("Warning", "Load a dataset first.")
+            return
+        steps = self.steps_var.get()
+        self.learn_slowly_step(steps)
+
+    def learn_slowly_step(self, remaining):
+        if remaining <= 0:
+            return
+        self.machine.learn()
+        self.machine.calculate_error()
+        self.update_info()
+        self.draw_plot()
+        self.root.after(10, self.learn_slowly_step, remaining - 1)
+
+    #button handling
+    def on_update_error(self):
+        if type(self.error_expected) == float and self.error_expected < 1.0 and self.error_expected > 0.0:
+            self.machine.set_tolerance(self.error_expected)
+            self.update_info()
+            self.draw_plot()
+        else:
+            messagebox.showwarning("Warning", "Set en error to a value from 0.0 to 1.0.")
+
+
+
+
     #plot
 
     def draw_plot(self):
@@ -170,8 +206,7 @@ class Interface():
         else:
             if abs(w1) > 1e-9:
                 xv = -bias / w1
-                ax.axvline(xv, color='#4CAF50', linewidth=1.8,
-                           label=f'boundary x1={xv:.2f}')
+                ax.axvline(xv, color='#4CAF50', linewidth=1.8, label=f'boundary x1={xv:.2f}')
                 ax.legend(fontsize=8)
 
         pad_x = (x1_max - x1_min) * 0.12 or 1.0
@@ -184,7 +219,7 @@ class Interface():
 
     def update_info(self):
         m = self.machine
-        kind = "Adaline" if isinstance(m, AdalineMachine) else "Perceptron"
+        kind = "Adaline" if type(self.machine) == AdalineMachine else "Perceptron"
         if m.data is None:
             self.info_text.set(f"Mode: {kind}\nNo data loaded.")
             return
@@ -197,5 +232,6 @@ class Interface():
             f"w1 = {m.w1:.4f}\n"
             f"w2 = {m.w2:.4f}\n"
             f"bias = {m.bias:.4f}\n"
-            f"Error: {last_err:.4f}"
+            f"Error: {last_err:.4f}\n"
+            f"Error treshold: {m.tolerance:.4f}"
         )
