@@ -56,9 +56,9 @@ class Interface():
         ttk.Separator(ctrl, orient='horizontal').pack(fill='x', pady=8)
         
         tk.Label(ctrl, text="Target error").pack(anchor='w')
-        self.error_expected = tk.DoubleVar(value=0.1)
+        self.error_expected = tk.DoubleVar(value = 0.1)
         tk.Entry(ctrl, textvariable=self.error_expected, width=10).pack(anchor='w')
-        tk.Button(ctrl, text="Update target error", command=self.on_reset, width=18).pack(pady=2)
+        tk.Button(ctrl, text="Update target error", command=self.on_update_error, width=18).pack(pady=2)
 
         ttk.Separator(ctrl, orient='horizontal').pack(fill='x', pady=8)
 
@@ -151,12 +151,16 @@ class Interface():
 
     #button handling
     def on_update_error(self):
-        if type(self.error_expected) == float and self.error_expected < 1.0 and self.error_expected > 0.0:
-            self.machine.set_tolerance(self.error_expected)
-            self.update_info()
-            self.draw_plot()
-        else:
-            messagebox.showwarning("Warning", "Set en error to a value from 0.0 to 1.0.")
+        try: 
+            t = float(self.error_expected.get())
+            if t < 1.0 and t > 0.0:
+                self.machine.set_tolerance(t)
+                self.update_info()
+                self.draw_plot()
+            else:
+                raise Exception("Error must be betweern 0.0 and 1.0")
+        except Exception as e:
+            messagebox.showwarning("Warning", f"Exception accured: {e}")
 
 
 
