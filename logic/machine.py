@@ -13,7 +13,7 @@ class Machine():
         self.epoch = 0
         self.data = None
         self.class_val = None
-        self.error_scores = []
+        self.error_scores = [1.0]
     def load_data(self, path):
         self.t = 0
         self.epoch = 0
@@ -28,6 +28,7 @@ class Machine():
         self.calculate_error()
     def set_tolerance(self, tolerance):
         self.tolerance = tolerance
+        
     def reset(self):
         self.w1 = random.randint(-100, 100)
         self.w2 = random.randint(-100, 100)
@@ -50,6 +51,10 @@ class Machine():
         else:
             self.t = 0
             self.epoch += 1
+            
+    def learn_in_steps(self, steps : int) -> None:
+        for i in range(steps):
+            self.learn()
     def calculate_error(self) -> None:
         wrong_predictions = 0
         total_samples = self.data.shape[0]
@@ -66,9 +71,6 @@ class Machine():
                 wrong_predictions += 1
                 
         self.error_scores.append(wrong_predictions / total_samples)
-    def learn_in_steps(self, steps : int) -> None:
-        for i in range(steps):
-            self.learn()
 
 class AdalineMachine(Machine):
     def __init__(self, learning_rate=0.01):

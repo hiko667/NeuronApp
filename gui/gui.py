@@ -3,12 +3,13 @@ from tkinter import filedialog, messagebox
 from tkinter import ttk
 import os
 import time
-import numpy as np
 
+import numpy as np
 import matplotlib
+import matplotlib.patches as mpatches
 matplotlib.use("TkAgg")
 from matplotlib.figure import Figure
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 from logic.machine import Machine, AdalineMachine
 
@@ -51,26 +52,30 @@ class Interface():
 
         tk.Spinbox(ctrl, from_=1, to=10_000, textvariable=self.steps_var, width=10).pack(anchor='w')
         tk.Button(ctrl, text="▶ Learn (n steps)", command=self.on_learn_steps, width=18).pack(pady=(10, 2))
-        tk.Button(ctrl, text="▶ Learn slowly (n steps)", command=self.on_learn_slowly, width=18).pack(pady=(10))
+        tk.Button(ctrl, text="▷ Learn slowly (n steps)", command=self.on_learn_slowly, width=18).pack(pady=(10))
+        tk.Button(ctrl, text="⫸ Learn for treshold", command=self.learn_until, width=18).pack(pady=(10))
+
         tk.Button(ctrl, text="⟳ Reset weights", command=self.on_reset, width=18).pack(pady=2)
         ttk.Separator(ctrl, orient='horizontal').pack(fill='x', pady=8)
         
         tk.Label(ctrl, text="Target error").pack(anchor='w')
-        self.error_expected = tk.DoubleVar(value = 0.1)
+        self.error_expected = tk.DoubleVar(value=0.1)
         tk.Entry(ctrl, textvariable=self.error_expected, width=10).pack(anchor='w')
         tk.Button(ctrl, text="Update target error", command=self.on_update_error, width=18).pack(pady=2)
+
 
         ttk.Separator(ctrl, orient='horizontal').pack(fill='x', pady=8)
 
         self.info_text = tk.StringVar(value="No data loaded.")
         tk.Label(ctrl, textvariable=self.info_text, justify='left', wraplength=165, fg='#333').pack(anchor='w')
 
-        # matplotlib
+        #matplotlib
         plot_frame = tk.Frame(self.root)
         plot_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
 
-        self.fig = Figure(figsize=(6.5, 5.2), dpi=96)
-        self.ax  = self.fig.add_subplot(111)
+        self.fig = Figure(figsize=(6.5, 8.0), dpi=96)
+        self.ax     = self.fig.add_subplot(211)  
+        self.ax_err = self.fig.add_subplot(212)  
         self.fig.tight_layout(pad=2.5)
 
         self.canvas = FigureCanvasTkAgg(self.fig, master=plot_frame)
@@ -80,7 +85,6 @@ class Interface():
         self.root.mainloop()
 
     #machine operatons
-
     def initialize_machine(self):
         self.machine = Machine()
 
@@ -123,6 +127,7 @@ class Interface():
         else:
             messagebox.showerror("Error", "You are already using Adaline.")
 
+    #side bar callbacks
     def on_learn_steps(self):
         if self.machine.data is None:
             messagebox.showwarning("Warning", "Load a dataset first.")
@@ -140,6 +145,28 @@ class Interface():
         steps = self.steps_var.get()
         self.learn_slowly_step(steps)
 
+    def learn_until(self):
+        if self.machine.data is None:
+            messagebox.showwarning("Warning", "Load a dataset first.")
+            return
+        self.learn_until_satep(0)
+
+    def learn_untill(self):
+        self.machine.learn_untill_treshold_or_make_ten_thousand_steps()
+    
+    def on_update_error(self):
+        try:
+            t = float(self.error_expected.get())
+            if t < 1.0 and t > 0.0:
+                self.machine.set_tolerance(t)
+                self.update_info()
+                self.draw_plot()
+            else:
+                messagebox.showwarning("Warning", "Set en error to a value from 0.0 to 1.0.")
+        except Exception as e:
+            messagebox.showwarning("Warnning", f"An unexpected error has accured: {e}")
+
+    #step util functions
     def learn_slowly_step(self, remaining):
         if remaining <= 0:
             return
@@ -149,25 +176,31 @@ class Interface():
         self.draw_plot()
         self.root.after(10, self.learn_slowly_step, remaining - 1)
 
-    #button handling
-    def on_update_error(self):
-        try: 
-            t = float(self.error_expected.get())
-            if t < 1.0 and t > 0.0:
-                self.machine.set_tolerance(t)
-                self.update_info()
-                self.draw_plot()
-            else:
-                raise Exception("Error must be betweern 0.0 and 1.0")
-        except Exception as e:
-            messagebox.showwarning("Warning", f"Exception accured: {e}")
-
-
-
+    def learn_until_step(self, steps):
+        
+        if self.machine.tolerance == 0.0:
+            messagebox.showerror("Error", "Treshold has not been set")
+            return
+        if self.machine.error_scores[-1] < self.machine.tolerance:
+            messagebox.showinfo("Sucess", "Treshold has been reached. Yuppi")
+            return
+        if steps > 9999:
+            messagebox.showinfo("Info", "Learning unsucesfull after 9999 steps")
+        self.machine.learn()
+        self.machine.calculate_error()
+        self.update_info()
+        self.draw_plot()
+        self.root.after(10, self.learn_until_step, steps + 1)
 
     #plot
 
     def draw_plot(self):
+        self.draw_boundary()
+        self.draw_error()
+        self.fig.tight_layout(pad=2.5)
+        self.canvas.draw()
+
+    def draw_boundary(self):
         ax = self.ax
         ax.clear()
         ax.set_title("Decision boundary", fontsize=11)
@@ -180,7 +213,6 @@ class Interface():
             ax.text(0.5, 0.5, "Load a dataset to see the plot",
                     ha='center', va='center', transform=ax.transAxes,
                     color='grey', fontsize=10)
-            self.canvas.draw()
             return
 
         x1 = m.data[:, 0].astype(float)
@@ -191,7 +223,7 @@ class Interface():
         ax.scatter(x1, x2, c=colors, s=28, alpha=0.8, linewidths=0,
                    label=None, zorder=3)
 
-        import matplotlib.patches as mpatches
+        
         ax.legend(handles=[
             mpatches.Patch(color='#2196F3', label='class +1'),
             mpatches.Patch(color='#FF5722', label='class −1 (0)'),
@@ -218,8 +250,34 @@ class Interface():
         ax.set_xlim(x1_min - pad_x, x1_max + pad_x)
         ax.set_ylim(x2.min() - pad_y, x2.max() + pad_y)
 
-        self.fig.tight_layout(pad=2.5)
-        self.canvas.draw()
+    def draw_error(self):
+        ax = self.ax_err
+        ax.clear()
+        ax.set_title("Learning error", fontsize=11)
+        ax.set_xlabel("Step")
+        ax.set_ylabel("Error")
+
+        m = self.machine
+        scores = m.error_scores if m.error_scores else []
+
+        if not scores:
+            ax.text(0.5, 0.5, "No learning history yet",
+                    ha='center', va='center', transform=ax.transAxes,
+                    color='grey', fontsize=10)
+            return
+
+        xs = list(range(1, len(scores) + 1))
+        ax.plot(xs, scores, color='#E91E63', linewidth=1.6, zorder=3)
+        ax.fill_between(xs, scores, alpha=0.15, color='#E91E63')
+
+        #tolerance
+        tol = self.machine.tolerance
+        ax.axhline(tol, color='#FF9800', linewidth=1.2, linestyle='--',
+                   label=f'target error ({tol:.4f})')
+        ax.legend(fontsize=8, loc='upper right')
+
+        ax.set_xlim(1, max(len(scores), 2))
+        ax.set_ylim(bottom=0)
 
     def update_info(self):
         m = self.machine
