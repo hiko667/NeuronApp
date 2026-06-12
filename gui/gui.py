@@ -34,7 +34,7 @@ class Interface():
         edit = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label='Dataset', menu=edit)
         edit.add_command(label='Load File', command=self.on_load_file)
-        edit.add_command(label='Edit',      command=None)
+        edit.add_command(label='Edit',      command=self.open_data_editor)
 
         machine_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label='Machine', menu=machine_menu)
@@ -297,3 +297,132 @@ class Interface():
             f"Error: {last_err:.4f}\n"
             f"Error treshold: {m.tolerance:.4f}"
         )
+
+##Data editor
+    def open_data_editor(self):
+        if self.machine.data is None:
+            messagebox.showwarning("Warning", "Load a dataset first.")
+            return
+
+        dialog_window = tk.Toplevel(self.root)
+        dialog_window.title("Neuron App! - Edit dataset")
+        dialog_window.grab_set()
+
+        toolbar = tk.Frame(dialog_window)
+        toolbar.pack(fill=tk.X, padx=8, pady=(8, 2))
+
+        tk.Button(toolbar, text="+ Add row",    command=lambda: add_row()).pack(side=tk.LEFT, padx=2)
+        tk.Button(toolbar, text="− Delete row", command=lambda: delete_row()).pack(side=tk.LEFT, padx=2)
+
+        cols = ("#", "x1", "x2", "class")
+        tree = ttk.Treeview(dialog_window, columns=cols, show="headings", selectmode="browse")
+        for c in cols:
+            tree.heading(c, text=c)
+        tree.column("#",     width=40,  anchor="center", stretch=False)
+        tree.column("x1",    width=110, anchor="center")
+        tree.column("x2",    width=110, anchor="center")
+        tree.column("class", width=70,  anchor="center")
+
+        vsb = ttk.Scrollbar(dialog_window, orient="vertical", command=tree.yview)
+        tree.configure(yscrollcommand=vsb.set)
+        tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(8, 0), pady=4)
+        vsb.pack(side=tk.LEFT, fill=tk.Y, pady=4, padx=(0, 8))
+
+        def populate():
+            tree.delete(*tree.get_children())
+            for i in range(self.machine.data.shape[0]):
+                x1  = self.machine.data[i, 0]
+                x2  = self.machine.data[i, 1]
+                cls = int(self.machine.class_val[i, 0])
+                tree.insert("", "end", iid=str(i), values=(i, f"{x1:.4f}", f"{x2:.4f}", cls))
+
+        populate()
+
+        edit_entry = tk.Entry(dialog_window)
+        edit_state = {}
+
+        def start_edit(event):
+            item = tree.identify_row(event.y)
+            col  = tree.identify_column(event.x)
+            if not item or col == "#1":             
+                return
+            col_idx  = int(col.lstrip("#")) - 1  
+            col_name = cols[col_idx]
+            x, y, w, h = tree.bbox(item, col)
+
+            edit_entry.place(x=tree.winfo_x() + x,
+                            y=tree.winfo_y() + y,
+                            width=w, height=h)
+            edit_entry.delete(0, tk.END)
+            edit_entry.insert(0, tree.set(item, col_name))
+            edit_entry.focus()
+            edit_state.update(iid=item, col_idx=col_idx, col_name=col_name)
+
+        def commit_edit(event=None):
+            if not edit_state:
+                return
+            val = edit_entry.get()
+            iid = edit_state["iid"]
+            col_name = edit_state["col_name"]
+            row = int(iid)
+            try:
+                if col_name == "class":
+                    int_val = int(float(val))
+                    if int_val not in (0, 1):
+                        raise ValueError("class must be 0 or 1")
+                    self.machine.class_val[row, 0] = int_val
+                else:
+                    fval = float(val)
+                    col_data = 0 if col_name == "x1" else 1
+                    self.machine.data[row, col_data] = fval
+                populate()
+            except ValueError as e:
+                messagebox.showerror("Invalid value", f"Error: {e}")
+            edit_entry.place_forget()
+            edit_state.clear()
+
+        def cancel_edit(event=None):
+            edit_entry.place_forget()
+            edit_state.clear()
+
+        tree.bind("<Double-1>", start_edit)
+        edit_entry.bind("<Return>",  commit_edit)
+        edit_entry.bind("<Escape>",  cancel_edit)
+        edit_entry.bind("<FocusOut>", cancel_edit)
+
+        def add_row():
+            commit_edit()
+            new_data = np.vstack([self.machine.data,    [[0.0, 0.0]]])
+            new_cls  = np.vstack([self.machine.class_val, [[0]]])
+            self.machine.data      = new_data
+            self.machine.class_val = new_cls
+            populate()
+            last = tree.get_children()[-1]
+            tree.see(last)
+            tree.selection_set(last)
+
+        def delete_row():
+            commit_edit()
+            sel = tree.selection()
+            if not sel:
+                messagebox.showwarning("Warning", "Select a row first.", parent=dialog_window)
+                return
+            if self.machine.data.shape[0] <= 1:
+                messagebox.showwarning("Warning", "Cannot delete the last row.", parent=dialog_window)
+                return
+            row = int(sel[0])
+            self.machine.data      = np.delete(self.machine.data,      row, axis=0)
+            self.machine.class_val = np.delete(self.machine.class_val, row, axis=0)
+            populate()
+
+        btn_frame = tk.Frame(dialog_window)
+        btn_frame.pack(fill=tk.X, padx=8, pady=(4, 8))
+
+        def apply_and_close():
+            commit_edit()
+            self.machine.calculate_error()
+            self.update_info()
+            self.draw_plot()
+            dialog_window.destroy()
+
+        tk.Button(btn_frame, text="Apply & close", command=apply_and_close, width=16).pack(side=tk.LEFT, padx=4)
